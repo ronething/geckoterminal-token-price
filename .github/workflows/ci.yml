@@ -1,6 +1,6 @@
 name: Send Token Price
 
-on: [ push, pull_request ]
+on: [ pull_request ]
 
 env:
   DINGTALK_TOKEN: ${{ secrets.DINGTALK_TOKEN }}
