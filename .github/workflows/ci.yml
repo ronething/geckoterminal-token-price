@@ -1,0 +1,19 @@
+name: Send Token Price
+
+on: [ push, pull_request ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.21.3'
+
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Get Token Price
+        run: go run main.go
