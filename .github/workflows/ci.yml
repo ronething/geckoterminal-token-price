@@ -1,6 +1,12 @@
 name: Send Token Price
 
-on: [ push, pull_request ]
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+env:
+  DINGTALK_TOKEN: ${{ secrets.DINGTALK_TOKEN }}
 
 jobs:
   build:
@@ -16,4 +22,6 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Get Token Price
-        run: go run main.go
+        run: |
+          go mod tidy
+          go run main.go

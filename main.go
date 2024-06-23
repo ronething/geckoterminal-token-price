@@ -26,6 +26,7 @@ func main() {
 
 	tokens := strings.Split(strings.Trim(tokenList, "\n"), "\n")
 	networkAddrs := make(map[string]string)
+	tokenName := make(map[string]string)
 	for i := 0; i < len(tokens); i++ {
 		token := strings.Split(tokens[i], ",")
 		_, ok := networkAddrs[token[0]]
@@ -34,6 +35,7 @@ func main() {
 		} else {
 			networkAddrs[token[0]] += "," + token[1]
 		}
+		tokenName[token[1]] = token[2]
 	}
 
 	//curl --location --request GET 'https://api.geckoterminal.com/api/v2/simple/networks/solana/token_price/F6fw97fXctQkkZDzmXrdsqm2Um2vtGnkdSnUQ6V2g9Q2' \
@@ -58,9 +60,9 @@ func main() {
 	}
 
 	var sendText bytes.Buffer
-	sendText.WriteString(fmt.Sprintf("token price, time: %s\n", time.Now().String()))
+	sendText.WriteString(fmt.Sprintf("token price, time: %s\n", time.Now().Format(time.RFC3339)))
 	for addr, price := range addrPrice {
-		sendText.WriteString(fmt.Sprintf("addr: %s, price: %s\n", addr, price))
+		sendText.WriteString(fmt.Sprintf("name: %s, addr: %s, price: %s\n", tokenName[addr], addr, price))
 	}
 
 	_ = d.SendText(sendText.String())
