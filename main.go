@@ -15,11 +15,17 @@ import (
 var (
 	//go:embed token
 	tokenList string
+	dryRun    bool
 )
+
+func init() {
+	// Check environment variable to set dryRun
+	dryRun = os.Getenv("DRY_RUN") == "true"
+}
 
 func main() {
 	dingToken := os.Getenv("DINGTALK_TOKEN")
-	if len(dingToken) == 0 {
+	if len(dingToken) == 0 && !dryRun {
 		panic("no ding talk token")
 	}
 	d := msgpush.NewDingTalk(dingToken)
@@ -38,13 +44,20 @@ func main() {
 		tokenName[token[1]] = token[2]
 	}
 
-	//curl --location --request GET 'https://api.geckoterminal.com/api/v2/simple/networks/solana/token_price/F6fw97fXctQkkZDzmXrdsqm2Um2vtGnkdSnUQ6V2g9Q2' \
-	//--header 'Accept: application/json;version=20230302'
-	//
-	//{"data":{"id":"9ac7da31-ed03-4c48-8504-747d949ffdfe","type":"simple_token_price","attributes":{"token_prices":{"F6fw97fXctQkkZDzmXrdsqm2Um2vtGnkdSnUQ6V2g9Q2":"0.0000916249278837784"}}}
-
 	addrPrice := make(map[string]string)
 
+	// Get fear and greed index
+	fearGreedResp, err := req.Get("https://api.alternative.me/fng/?limit=1")
+	if err != nil {
+		fmt.Printf("Failed to get fear & greed index: %v\n", err)
+	}
+
+	var fgResp FearGreedResp
+	if err = fearGreedResp.ToJSON(&fgResp); err != nil {
+		fmt.Printf("Failed to parse fear & greed index: %v\n", err)
+	}
+
+	// Get token prices
 	for network, addrs := range networkAddrs {
 		resp, err := req.Get(fmt.Sprintf("https://api.geckoterminal.com/api/v2/simple/networks/%s/token_price/%s", network, addrs))
 		if err != nil {
@@ -61,11 +74,27 @@ func main() {
 
 	var sendText bytes.Buffer
 	sendText.WriteString(fmt.Sprintf("token price, time: %s\n", time.Now().Format(time.RFC3339)))
+
+	// Add fear & greed index info
+	if len(fgResp.Data) > 0 {
+		sendText.WriteString(fmt.Sprintf("Fear & Greed Index: %s (%s)\n\n",
+			fgResp.Data[0].Value,
+			fgResp.Data[0].ValueClassification))
+	}
+
 	for addr, price := range addrPrice {
 		sendText.WriteString(fmt.Sprintf("name: %s, addr: %s, price: %s\n", tokenName[addr], addr, price))
 	}
 
-	_ = d.SendText(sendText.String())
+	if dryRun {
+		fmt.Println("=== DRY RUN MODE ===")
+		fmt.Println(sendText.String())
+		fmt.Println("=== END DRY RUN ===")
+	} else {
+		if err := d.SendText(sendText.String()); err != nil {
+			fmt.Printf("Failed to send message: %v\n", err)
+		}
+	}
 }
 
 type GetTokenPriceResp struct {
@@ -75,5 +104,13 @@ type GetTokenPriceResp struct {
 		Attributes struct {
 			TokenPrices map[string]string `json:"token_prices"`
 		} `json:"attributes"`
+	} `json:"data"`
+}
+
+type FearGreedResp struct {
+	Data []struct {
+		Value               string `json:"value"`
+		ValueClassification string `json:"value_classification"`
+		Timestamp           string `json:"timestamp"`
 	} `json:"data"`
 }
